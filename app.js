@@ -1,40 +1,55 @@
 const express = require("express");
-const dbconfig = require("./dbconfig");
 const oracledb = require("oracledb");
+const dbConfig = require("./dbconfig");
 const logger = require("morgan");
-const dotenv = require("dotenv");
 const nunjucks = require("nunjucks");
+const e = require("express");
 
 const app = express();
+app.use(logger("dev"));
 
-dotenv.config();
+let result;
 
-app.get("/", (req, res) => {
-  console.log("listening...");
-  res.send("node.js plus oracledb project");
-});
+oracledb.autoCommit = true; //자동 커밋
 
-async function run() {
-  let connection;
-  try {
-    connection = await oracledb.getConnection(dbconfig);
-    console.log("connection was successful!");
-  } catch (err) {
-    console.error(err);
-  } finally {
-    if (connection) {
-      try {
-        await connection.close();
-      } catch (err) {
-        console.error(err);
-      }
+oracledb.getConnection(
+  {
+    user: dbConfig.user,
+    password: dbConfig.password,
+    connectString: dbConfig.connectString,
+  },
+  function (err, conn) {
+    if (err) {
+      throw err;
     }
+    var sql;
+
+    // select
+    sql = "select * from member";
+
+    conn.execute(sql, [], function (err, result) {
+      if (err) {
+        throw err;
+      }
+      console.log(result.rows);
+      doRelease(conn);
+    });
   }
+);
+
+//DB 종료
+function doRelease(conn) {
+  conn.release(function (err) {
+    if (err) {
+      throw err;
+    }
+  });
 }
 
-run();
-
-app.listen(process.env.EXPRESS_PORT, () => {
-  console.log(`server is running on ${process.env.EXPRESS_PORT}`);
+app.get("/", (req, res) => {
+  res.send("<h1>hello</h1>");
 });
-app.use(logger("dev"));
+
+app.listen(dbConfig.EXPRESS_PORT, () => {
+  console.log(`server is running on ${dbConfig.EXPRESS_PORT}`);
+});
